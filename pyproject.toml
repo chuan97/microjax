@@ -1,0 +1,15 @@
+[project]
+name = "microjax"
+version = "0.1.0"
+description = "like Karpathy's micrograd but following jax's functional paradigm"
+requires-python = ">3.11"
+dependencies = [
+    "torch>=2.0.0",
+]
+
+[tool.hatch.envs.default]
+type = "virtual"
+path = ".venv"
+dependencies = [
+    "pytest",
+]
