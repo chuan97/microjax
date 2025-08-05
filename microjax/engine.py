@@ -3,17 +3,17 @@ from typing import Callable
 
 
 class Primitive:
-    def __init__(self, name: str, forward_fn: Callable, backward_fns: list[Callable]):
+    def __init__(self, name: str, f: Callable, partials: list[Callable]):
         """
-        forward_fn: f: (x_1, ..., x_n) -> y = f(x_1, ..., x_n)
-        backward_fns: df/dx_1, ..., df/dx_n
+        f: f: (x_1, ..., x_n) -> y = f(x_1, ..., x_n)
+        partials: df/dx_1, ..., df/dx_n
             with df/dx_i: (x_1, ..., x_n) -> y' = df/dx_i(x_1, ..., x_n)
         """
         self.name = name
-        self.forward_fn = forward_fn
-        self.backward_fns = backward_fns
+        self.f = f
+        self.partials = partials
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> "Tracer":
         # convert to Tracer if needed
         args = [
             arg if isinstance(arg, Tracer) else Tracer(arg, parents=tuple(), op=None)
@@ -21,7 +21,7 @@ class Primitive:
         ]
 
         # compute output value
-        out_val = self.forward_fn(*[arg.value for arg in args])
+        out_val = self.f(*[arg.value for arg in args])
 
         # return output value as Tracer
         return Tracer(out_val, parents=tuple(args), op=self)
@@ -36,8 +36,40 @@ class Tracer:
     parents: tuple["Tracer"]
     op: Primitive
 
+    def __add__(self, other) -> "Tracer":
+        add = Primitive(name="add", f=lambda x, y: x + y, partials=[lambda x, y: 1] * 2)
 
-def trace(f: Callable, *in_vals: list[float]):
+        return add(self, other)
+
+    def __mul__(self, other) -> "Tracer":
+        mul = Primitive(
+            name="mul",
+            f=lambda x, y: x * y,
+            partials=[
+                lambda x, y: y,
+                lambda x, y: x,
+            ],
+        )
+
+        return mul(self, other)
+
+    def __neg__(self) -> "Tracer":  # -self
+        return self * -1
+
+    def __radd__(self, other) -> "Tracer":  # other + self
+        return self + other
+
+    def __sub__(self, other) -> "Tracer":  # self - other
+        return self + (-other)
+
+    def __rsub__(self, other) -> "Tracer":  # other - self
+        return other + (-self)
+
+    def __rmul__(self, other) -> "Tracer":  # other * self
+        return self * other
+
+
+def trace(f: Callable, *in_vals: list[float]) -> tuple[Tracer, list[Tracer]]:
     # Trace inputs
     inputs = [Tracer(val, parents=tuple(), op=None) for val in in_vals]
     # Forward pass: ADG is built
@@ -45,19 +77,19 @@ def trace(f: Callable, *in_vals: list[float]):
     return output, inputs
 
 
-def backwards(output: Tracer):
+def backwards(output: Tracer) -> dict[Tracer, float]:
     grads = {output: 1.0}
 
     for node in reverse_topo_sort(output):
         prev_grad = grads[node]
         for i, parent in enumerate(node.parents):
-            partial = node.op.backward_fns[i](*[p.value for p in node.parents])
+            partial = node.op.partials[i](*[p.value for p in node.parents])
             grads[parent] = grads.get(parent, 0.0) + partial * prev_grad
 
     return grads
 
 
-def grad(f: Callable):
+def grad(f: Callable) -> Callable:
     def grad_f(*args):
         output, inputs = trace(f, *args)
         grads = backwards(output)
@@ -66,7 +98,7 @@ def grad(f: Callable):
     return grad_f
 
 
-def reverse_topo_sort(output: Tracer):
+def reverse_topo_sort(output: Tracer) -> list[Tracer]:
     visited = set()
     topo = []
 
@@ -81,20 +113,4 @@ def reverse_topo_sort(output: Tracer):
     return reversed(topo)
 
 
-# ---------- basic operations ----------
-add = Primitive(
-    name="add", forward_fn=lambda x, y: x + y, backward_fns=[lambda x, y: 1] * 2
-)
-
-mul = Primitive(
-    name="mul",
-    forward_fn=lambda x, y: x * y,
-    backward_fns=[
-        lambda x, y: y,
-        lambda x, y: x,
-    ],
-)
-
-relu = Primitive(
-    name="relu", forward_fn=lambda x: x if x > 0 else 0, backward_fns=[lambda x: x > 0]
-)
+relu = Primitive(name="relu", f=lambda x: x if x > 0 else 0, partials=[lambda x: x > 0])

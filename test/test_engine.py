@@ -1,14 +1,14 @@
 import torch
 
-from microjax.engine import add, grad, mul, relu
+from microjax.engine import grad, relu
 
 
 def test_sanity_check():
     def f(x):
-        z = add(add(mul(2, x), 2), x)
-        q = add(relu(z), mul(z, x))
-        h = relu(mul(z, z))
-        y = add(h, add(q, mul(q, x)))
+        z = 2 * x + 2 + x
+        q = z + z * x
+        h = relu(z * z)
+        y = h + q + q * x
 
         return y
 
