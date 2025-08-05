@@ -37,7 +37,7 @@ class Primitive:
 relu = Primitive(
     name="relu",
     f=lambda x: x if x > 0 else 0,
-    partials=[lambda x: 1.0 if x.value > 0 else 0.0],
+    partials=[lambda x: 1.0 if x.value > 0.0 else 0.0],
 )
 
 _add = Primitive(name="add", f=lambda x, y: x + y, partials=[lambda x, y: 1] * 2)
@@ -55,7 +55,7 @@ _pow = Primitive(
     name="pow",
     f=lambda x, y: x**y,
     partials=[
-        lambda x, y: y * x ** (y - 1),
+        lambda x, y: y * x ** (y - 1) if y.value != 0.0 else 0.0,
         lambda x, y: 0.0,  # derivative w.r.t. exponent not supported
     ],
 )

@@ -94,3 +94,25 @@ def test_higher_order_grad():
 
     assert grad_grad_f(0.0) == 2.0
     assert grad_grad_f(-5.0) == 2.0
+
+    grad_f = grad(f_)
+    grad_grad_f = grad(grad_f)
+
+    assert grad_grad_f(0.0) == 2.0
+    assert grad_grad_f(-5.0) == 2.0
+
+    def g_(x):
+        return 5 * x**5 + 3 * x**3 + 1
+
+    g3 = grad(grad(grad(g_)))
+
+    assert g3(0.0) == 18.0
+    assert g3(1.0) == 318.0
+
+    def h_(x):
+        return 4 * x**4 + 2 * x**2
+
+    g3 = grad(grad(grad(h_)))
+
+    assert g3(0.0) == 0.0
+    assert g3(1.0) == 96.0
