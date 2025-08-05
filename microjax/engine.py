@@ -35,7 +35,9 @@ class Primitive:
 
 
 relu = Primitive(
-    name="relu", f=lambda x: x if x > 0 else 0, partials=[lambda x: float(x > 0)]
+    name="relu",
+    f=lambda x: x if x > 0 else 0,
+    partials=[lambda x: 1.0 if x.value > 0 else 0.0],
 )
 
 _add = Primitive(name="add", f=lambda x, y: x + y, partials=[lambda x, y: 1] * 2)
@@ -62,13 +64,15 @@ _pow = Primitive(
 # ====== Tracer ======
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Tracer:
     """stores a single scalar value, the op that created it and its parents"""
 
     value: float
     parents: tuple["Tracer"]
     op: Primitive
+
+    __hash__ = object.__hash__  # identity (not value) based hash
 
     def __add__(self, other) -> "Tracer":
         return _add(self, other)
@@ -102,11 +106,7 @@ class Tracer:
 
     def __repr__(self):
         parent_vals = [p.value for p in self.parents]
-        return (
-            f"\nTracer:\n\tvalue={self.value}"
-            + f"\n\tparents={parent_vals}"
-            + f"\n\top={self.op}\n"
-        )
+        return f"(Tracer: value={self.value}, parents={parent_vals}, op={self.op})"
 
 
 # ===== Engine ======
@@ -126,7 +126,7 @@ def trace(f: Callable, *in_vals) -> tuple[Tracer, list[Tracer]]:
     if not isinstance(output, Tracer):
         op = Primitive(
             name="const",
-            f=lambda *args: f(*args),
+            f=f,
             partials=[0.0] * len(in_vals),
         )
         output = Tracer(output, parents=(), op=op)
@@ -142,7 +142,7 @@ def backwards(output: Tracer) -> dict[Tracer, float]:
         prev_grad = grads[node]
 
         for i, parent in enumerate(node.parents):
-            partial = node.op.partials[i](*[p.value for p in node.parents])
+            partial = node.op.partials[i](*node.parents)
 
             grads[parent] = grads.get(parent, 0.0) + partial * prev_grad
 
@@ -155,6 +155,13 @@ def grad(f: Callable) -> Callable:
     def grad_f(*args):
         output, inputs = trace(f, *args)
         grads = backwards(output)
+
+        # are we inside an outer trace (higher order grads)
+        inside_trace = any(isinstance(a, Tracer) for a in args)
+        if not inside_trace:
+            grads = {
+                n: g.value if isinstance(g, Tracer) else g for n, g in grads.items()
+            }
 
         if len(inputs) == 1:
             return grads.get(inputs[0], 0.0)
