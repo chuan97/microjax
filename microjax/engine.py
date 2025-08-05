@@ -58,6 +58,7 @@ _pow = Primitive(
     ],
 )
 
+
 # ====== Tracer ======
 
 
@@ -99,16 +100,36 @@ class Tracer:
     def __rtruediv__(self, other) -> "Tracer":  # other / self
         return self**-1 * other
 
+    def __repr__(self):
+        parent_vals = [p.value for p in self.parents]
+        return (
+            f"\nTracer:\n\tvalue={self.value}"
+            + f"\n\tparents={parent_vals}"
+            + f"\n\top={self.op}\n"
+        )
+
 
 # ===== Engine ======
 
 
-def trace(f: Callable, *in_vals: list[float]) -> tuple[Tracer, list[Tracer]]:
+def trace(f: Callable, *in_vals) -> tuple[Tracer, list[Tracer]]:
     """trace a function call (forward pass)"""
     # Trace inputs
-    inputs = [Tracer(val, parents=tuple(), op=None) for val in in_vals]
+    inputs = [
+        Tracer(val, parents=(), op=None) if not isinstance(val, Tracer) else val
+        for val in in_vals
+    ]
     # Forward pass: ADG is built
     output = f(*inputs)
+
+    # the case where f returns a constant
+    if not isinstance(output, Tracer):
+        op = Primitive(
+            name="const",
+            f=lambda *args: f(*args),
+            partials=[0.0] * len(in_vals),
+        )
+        output = Tracer(output, parents=(), op=op)
 
     return output, inputs
 
@@ -122,6 +143,7 @@ def backwards(output: Tracer) -> dict[Tracer, float]:
 
         for i, parent in enumerate(node.parents):
             partial = node.op.partials[i](*[p.value for p in node.parents])
+
             grads[parent] = grads.get(parent, 0.0) + partial * prev_grad
 
     return grads
@@ -134,7 +156,9 @@ def grad(f: Callable) -> Callable:
         output, inputs = trace(f, *args)
         grads = backwards(output)
 
-        return [grads[input] for input in inputs]
+        if len(inputs) == 1:
+            return grads.get(inputs[0], 0.0)
+        return [grads.get(inp, 0.0) for inp in inputs]
 
     return grad_f
 

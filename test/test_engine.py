@@ -15,7 +15,7 @@ def test_sanity_check():
     grad_f = grad(f_)
 
     x = -4.0
-    dfdx = grad_f(x)[0]
+    dfdx = grad_f(x)
 
     X = torch.Tensor([x]).double()
     X.requires_grad = True
@@ -58,3 +58,39 @@ def test_more_ops():
 
     assert A.grad.item() == dfda
     assert B.grad.item() == dfdb
+
+
+def test_trivial_cases():
+    def f_(x):
+        return x
+
+    grad_f = grad(f_)
+
+    assert grad_f(0.0) == 1.0
+    assert grad_f(4.0) == 1.0
+
+    def g_(x):
+        return 1.0
+
+    grad_g = grad(g_)
+
+    assert grad_g(0.0) == 0.0
+    assert grad_g(-1.0) == 0.0
+
+    def h_(x, y):
+        return 1.0
+
+    grad_h = grad(h_)
+
+    assert grad_h(0.0, 1.0) == [0.0, 0.0]
+    assert grad_h(-1.0, 5.0) == [0.0, 0.0]
+
+
+def test_higher_order_grad():
+    def f_(x):
+        return x**2
+
+    grad_grad_f = grad(grad(f_))
+
+    assert grad_grad_f(0.0) == 2.0
+    assert grad_grad_f(-5.0) == 2.0
