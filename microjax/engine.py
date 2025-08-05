@@ -32,6 +32,22 @@ class Primitive:
         return f"Primitive(name={self.name})"
 
 
+relu = Primitive(
+    name="relu", f=lambda x: x if x > 0 else 0, partials=[lambda x: float(x > 0)]
+)
+
+_add = Primitive(name="add", f=lambda x, y: x + y, partials=[lambda x, y: 1] * 2)
+
+_mul = Primitive(
+    name="mul",
+    f=lambda x, y: x * y,
+    partials=[
+        lambda x, y: y,
+        lambda x, y: x,
+    ],
+)
+
+
 @dataclass(frozen=True)
 class Tracer:
     """stores a single scalar value, the op that created it and its parents"""
@@ -41,21 +57,10 @@ class Tracer:
     op: Primitive
 
     def __add__(self, other) -> "Tracer":
-        add = Primitive(name="add", f=lambda x, y: x + y, partials=[lambda x, y: 1] * 2)
-
-        return add(self, other)
+        return _add(self, other)
 
     def __mul__(self, other) -> "Tracer":
-        mul = Primitive(
-            name="mul",
-            f=lambda x, y: x * y,
-            partials=[
-                lambda x, y: y,
-                lambda x, y: x,
-            ],
-        )
-
-        return mul(self, other)
+        return _mul(self, other)
 
     def __neg__(self) -> "Tracer":  # -self
         return self * -1
@@ -84,7 +89,7 @@ def trace(f: Callable, *in_vals: list[float]) -> tuple[Tracer, list[Tracer]]:
 
 
 def backwards(output: Tracer) -> dict[Tracer, float]:
-    """backpropagate from gradients from output"""
+    """backpropagate gradients from output"""
     grads = {output: 1.0}
 
     for node in reverse_topo_sort(output):
@@ -117,12 +122,11 @@ def reverse_topo_sort(output: Tracer) -> list[Tracer]:
     def build_topo(node):
         if node not in visited:
             visited.add(node)
+
             for parent in node.parents:
                 build_topo(parent)
+
             topo.append(node)
 
     build_topo(output)
     return reversed(topo)
-
-
-relu = Primitive(name="relu", f=lambda x: x if x > 0 else 0, partials=[lambda x: x > 0])
