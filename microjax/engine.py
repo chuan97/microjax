@@ -49,6 +49,14 @@ _mul = Primitive(
     ],
 )
 
+_pow = Primitive(
+    name="pow",
+    f=lambda x, y: x**y,
+    partials=[
+        lambda x, y: y * x ** (y - 1),
+        lambda x, y: 0.0,  # derivative w.r.t. exponent not supported
+    ],
+)
 
 # ====== Tracer ======
 
@@ -67,6 +75,9 @@ class Tracer:
     def __mul__(self, other) -> "Tracer":
         return _mul(self, other)
 
+    def __pow__(self, other) -> "Tracer":
+        return _pow(self, other)
+
     def __neg__(self) -> "Tracer":  # -self
         return self * -1
 
@@ -81,6 +92,12 @@ class Tracer:
 
     def __rmul__(self, other) -> "Tracer":  # other * self
         return self * other
+
+    def __truediv__(self, other) -> "Tracer":  # self / other
+        return self * other**-1
+
+    def __rtruediv__(self, other) -> "Tracer":  # other / self
+        return self**-1 * other
 
 
 # ===== Engine ======
