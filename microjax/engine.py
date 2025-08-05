@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable
 
+# ====== Primitive ops ======
+
 
 class Primitive:
     """stores a single scalar function and its partial derivatives (gradient)"""
@@ -48,6 +50,9 @@ _mul = Primitive(
 )
 
 
+# ====== Tracer ======
+
+
 @dataclass(frozen=True)
 class Tracer:
     """stores a single scalar value, the op that created it and its parents"""
@@ -76,6 +81,9 @@ class Tracer:
 
     def __rmul__(self, other) -> "Tracer":  # other * self
         return self * other
+
+
+# ===== Engine ======
 
 
 def trace(f: Callable, *in_vals: list[float]) -> tuple[Tracer, list[Tracer]]:
