@@ -3,9 +3,11 @@ from typing import Callable
 
 
 class Primitive:
+    """stores a single scalar function and its partial derivatives (gradient)"""
+
     def __init__(self, name: str, f: Callable, partials: list[Callable]):
         """
-        f: f: (x_1, ..., x_n) -> y = f(x_1, ..., x_n)
+        f: (x_1, ..., x_n) -> y = f(x_1, ..., x_n)
         partials: df/dx_1, ..., df/dx_n
             with df/dx_i: (x_1, ..., x_n) -> y' = df/dx_i(x_1, ..., x_n)
         """
@@ -32,6 +34,8 @@ class Primitive:
 
 @dataclass(frozen=True)
 class Tracer:
+    """stores a single scalar value, the op that created it and its parents"""
+
     value: float
     parents: tuple["Tracer"]
     op: Primitive
@@ -70,18 +74,22 @@ class Tracer:
 
 
 def trace(f: Callable, *in_vals: list[float]) -> tuple[Tracer, list[Tracer]]:
+    """trace a function call (forward pass)"""
     # Trace inputs
     inputs = [Tracer(val, parents=tuple(), op=None) for val in in_vals]
     # Forward pass: ADG is built
     output = f(*inputs)
+
     return output, inputs
 
 
 def backwards(output: Tracer) -> dict[Tracer, float]:
+    """backpropagate from gradients from output"""
     grads = {output: 1.0}
 
     for node in reverse_topo_sort(output):
         prev_grad = grads[node]
+
         for i, parent in enumerate(node.parents):
             partial = node.op.partials[i](*[p.value for p in node.parents])
             grads[parent] = grads.get(parent, 0.0) + partial * prev_grad
@@ -90,15 +98,19 @@ def backwards(output: Tracer) -> dict[Tracer, float]:
 
 
 def grad(f: Callable) -> Callable:
+    """given a scalar function return the function that computes its gradient"""
+
     def grad_f(*args):
         output, inputs = trace(f, *args)
         grads = backwards(output)
+
         return [grads[input] for input in inputs]
 
     return grad_f
 
 
 def reverse_topo_sort(output: Tracer) -> list[Tracer]:
+    """topological sort of the computational ADG"""
     visited = set()
     topo = []
 
