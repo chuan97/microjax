@@ -153,21 +153,41 @@ def grad(f: Callable) -> Callable:
     """given a scalar function return the function that computes its gradient"""
 
     def grad_f(*args):
-        output, inputs = trace(f, *args)
-        grads = backwards(output)
-
-        # are we inside an outer trace (higher order grads)
-        inside_trace = any(isinstance(a, Tracer) for a in args)
-        if not inside_trace:
-            grads = {
-                n: g.value if isinstance(g, Tracer) else g for n, g in grads.items()
-            }
-
-        if len(inputs) == 1:
-            return grads.get(inputs[0], 0.0)
-        return [grads.get(inp, 0.0) for inp in inputs]
+        _, _, grads = evaluate_with_grad(f, *args)
+        return grads
 
     return grad_f
+
+
+def value_and_grad(f: Callable) -> Callable:
+    """given a scalar function return a function that computes it and its gradient"""
+
+    def value_and_grad_f(*args):
+        output, _, grads = evaluate_with_grad(f, *args)
+        return output, grads
+
+    return value_and_grad_f
+
+
+def evaluate_with_grad(f, *args):
+    """
+    given a scalar function and its arguments, run it forward tracing the inputs
+    and return the output value and the gradient
+    """
+    output, inputs = trace(f, *args)
+    grads = backwards(output)
+
+    # are we inside an outer trace (higher order grads)
+    inside_trace = any(isinstance(a, Tracer) for a in args)
+    if not inside_trace:
+        grads = {n: g.value if isinstance(g, Tracer) else g for n, g in grads.items()}
+
+    if len(inputs) == 1:
+        grads = grads.get(inputs[0], 0.0)
+    else:
+        grads = [grads.get(inp, 0.0) for inp in inputs]
+
+    return output, inputs, grads
 
 
 def reverse_topo_sort(output: Tracer) -> list[Tracer]:
