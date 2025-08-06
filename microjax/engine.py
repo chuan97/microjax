@@ -1,6 +1,16 @@
 from dataclasses import dataclass
 from typing import Callable
 
+__all__ = [
+    "Primitive",
+    "Tracer",
+    "relu",
+    "grad",
+    "value_and_grad",
+    "trace",
+    "backwards",
+]
+
 # ====== Primitive ops ======
 
 
@@ -124,12 +134,7 @@ def trace(f: Callable, *in_vals) -> tuple[Tracer, list[Tracer]]:
 
     # the case where f returns a constant
     if not isinstance(output, Tracer):
-        op = Primitive(
-            name="const",
-            f=f,
-            partials=[0.0] * len(in_vals),
-        )
-        output = Tracer(output, parents=(), op=op)
+        output = Tracer(output, parents=(), op=None)
 
     return output, inputs
 
@@ -139,12 +144,12 @@ def backwards(output: Tracer) -> dict[Tracer, float]:
     grads = {output: 1.0}
 
     for node in reverse_topo_sort(output):
-        prev_grad = grads[node]
+        accum_grad = grads[node]
 
         for i, parent in enumerate(node.parents):
             partial = node.op.partials[i](*node.parents)
 
-            grads[parent] = grads.get(parent, 0.0) + partial * prev_grad
+            grads[parent] = grads.get(parent, 0.0) + partial * accum_grad
 
     return grads
 

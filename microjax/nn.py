@@ -1,10 +1,11 @@
 import random
 from dataclasses import dataclass
-from typing import Union
 
 from .engine import Tracer, relu
 
-Scalar = Union[float | Tracer]
+Scalar = float | Tracer
+
+__all__ = ["Neuron", "Layer", "MLP"]
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,8 @@ class Layer:
 
 @dataclass(frozen=True)
 class MLP:
+    """pure function that can act on Tracers (uses supported primitives)"""
+
     layers: list[Layer]
 
     def __call__(self, x: list[Scalar]) -> list[Scalar]:
@@ -79,10 +82,12 @@ class MLP:
         return x
 
     def parameters(self) -> list[Scalar]:
+        """helper method to export model parameters"""
         return [p for l in self.layers for p in l.parameters()]
 
     @classmethod
     def init(cls, nin: int, nouts: list[int]) -> "MLP":
+        """helper method for random initialization of the model"""
         sz = [nin] + nouts
 
         layers = [
@@ -94,6 +99,7 @@ class MLP:
 
     @classmethod
     def from_parameters(cls, params: list[Scalar], nin: int, nouts: list[int]) -> "MLP":
+        """helper method to rebuild model from parameters"""
         sz = [nin] + nouts
         layers = []
         idx = 0
