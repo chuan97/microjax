@@ -20,7 +20,7 @@ def test_sanity_check():
     X = torch.Tensor([x]).double()
     X.requires_grad = True
 
-    Y = f_(X).value
+    Y = f_(X)
     Y.backward()
 
     assert X.grad.item() == dfdx
@@ -53,7 +53,7 @@ def test_more_ops():
     A.requires_grad = True
     B.requires_grad = True
 
-    Y = f_(A, B).value
+    Y = f_(A, B)
     Y.backward()
 
     assert A.grad.item() == dfda

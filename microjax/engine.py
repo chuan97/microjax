@@ -30,7 +30,7 @@ class Primitive:
     def __call__(self, *args) -> "Tracer":
         # convert to Tracer if needed
         args = [
-            arg if isinstance(arg, Tracer) else Tracer(arg, parents=tuple(), op=None)
+            arg if is_tracer(arg) else Tracer(arg, parents=tuple(), op=None)
             for arg in args
         ]
 
@@ -43,12 +43,6 @@ class Primitive:
     def __repr__(self):
         return f"Primitive(name={self.name})"
 
-
-relu = Primitive(
-    name="relu",
-    f=lambda x: x if x > 0 else 0,
-    partials=[lambda x: 1.0 if x.value > 0.0 else 0.0],
-)
 
 _add = Primitive(name="add", f=lambda x, y: x + y, partials=[lambda x, y: 1] * 2)
 
@@ -69,6 +63,17 @@ _pow = Primitive(
         lambda x, y: 0.0,  # derivative w.r.t. exponent not supported
     ],
 )
+
+_relu = Primitive(
+    name="relu",
+    f=lambda x: x if x > 0 else 0,
+    partials=[lambda x: 1.0 if x.value > 0.0 else 0.0],
+)
+
+
+def relu(x):
+    """wrapper to avoid exposing Tracers when a user uses relu to build a function"""
+    return _relu(x) if is_tracer(x) else max(0.0, x)
 
 
 # ====== Tracer ======
@@ -119,6 +124,10 @@ class Tracer:
         return f"<[Tracer: value={self.value}, parents={parent_vals}, op={self.op}]>"
 
 
+def is_tracer(x):
+    return isinstance(x, Tracer)
+
+
 # ===== Engine ======
 
 
@@ -126,14 +135,14 @@ def trace(f: Callable, *in_vals) -> tuple[Tracer, list[Tracer]]:
     """trace a function call (forward pass)"""
     # Trace inputs
     inputs = [
-        Tracer(val, parents=(), op=None) if not isinstance(val, Tracer) else val
+        Tracer(val, parents=(), op=None) if not is_tracer(val) else val
         for val in in_vals
     ]
     # Forward pass: ADG is built
     output = f(*inputs)
 
     # the case where f returns a constant
-    if not isinstance(output, Tracer):
+    if not is_tracer(output):
         output = Tracer(output, parents=(), op=None)
 
     return output, inputs
@@ -183,9 +192,9 @@ def evaluate_with_grad(f, *args):
     grads = backwards(output)
 
     # are we inside an outer trace (higher order grads)
-    inside_trace = any(isinstance(a, Tracer) for a in args)
+    inside_trace = any(is_tracer(a) for a in args)
     if not inside_trace:
-        grads = {n: g.value if isinstance(g, Tracer) else g for n, g in grads.items()}
+        grads = {n: g.value if is_tracer(g) else g for n, g in grads.items()}
         output = output.value
 
     if len(inputs) == 1:
