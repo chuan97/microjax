@@ -18,7 +18,7 @@ class Neuron:
         return relu(act) if self.nonlin else act
 
     def parameters(self) -> list[Scalar]:
-        return self.w + [self.b, 1.0 if self.nonlin else 0.0]
+        return self.w + [self.b]
 
     @classmethod
     def init(cls, nin: int, nonlin: bool = True) -> "Neuron":
@@ -27,10 +27,9 @@ class Neuron:
         return Neuron(w=w, b=0.0, nonlin=nonlin)
 
     @classmethod
-    def from_parameters(cls, params: list[Scalar]) -> "Neuron":
-        w = params[:-2]
-        b = params[-2]
-        nonlin = bool(params[-1])
+    def from_parameters(cls, params: list[Scalar], nonlin: bool) -> "Neuron":
+        w = params[:-1]
+        b = params[-1]
 
         return cls(w=w, b=b, nonlin=nonlin)
 
@@ -54,11 +53,13 @@ class Layer:
         return Layer([Neuron.init(nin, **kwargs) for _ in range(nout)])
 
     @classmethod
-    def from_parameters(cls, params: list[Scalar], nin: int, nout: int) -> "Layer":
-        width = nin + 2
+    def from_parameters(
+        cls, params: list[Scalar], nin: int, nout: int, nonlin: bool
+    ) -> "Layer":
+        width = nin + 1
 
         neurons = [
-            Neuron.from_parameters(params[i * width : (i + 1) * width])
+            Neuron.from_parameters(params[i * width : (i + 1) * width], nonlin=nonlin)
             for i in range(nout)
         ]
         return cls(neurons)
@@ -97,10 +98,16 @@ class MLP:
         layers = []
         idx = 0
 
-        for in_dim, out_dim in zip(sz, sz[1:]):
-            num_params = (in_dim + 2) * out_dim
+        for i in range(len(nouts)):
+            in_dim = sz[i]
+            out_dim = sz[i + 1]
+            num_params = (in_dim + 1) * out_dim
             layer_params = params[idx : idx + num_params]
-            layers.append(Layer.from_parameters(layer_params, in_dim, out_dim))
+            layers.append(
+                Layer.from_parameters(
+                    layer_params, in_dim, out_dim, nonlin=i != len(nouts) - 1
+                )
+            )
             idx += num_params
 
         return cls(layers)

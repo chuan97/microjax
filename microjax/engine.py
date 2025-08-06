@@ -106,7 +106,7 @@ class Tracer:
 
     def __repr__(self):
         parent_vals = [p.value for p in self.parents]
-        return f"(Tracer: value={self.value}, parents={parent_vals}, op={self.op})"
+        return f"<[Tracer: value={self.value}, parents={parent_vals}, op={self.op}]>"
 
 
 # ===== Engine ======
@@ -181,6 +181,7 @@ def evaluate_with_grad(f, *args):
     inside_trace = any(isinstance(a, Tracer) for a in args)
     if not inside_trace:
         grads = {n: g.value if isinstance(g, Tracer) else g for n, g in grads.items()}
+        output = output.value
 
     if len(inputs) == 1:
         grads = grads.get(inputs[0], 0.0)
