@@ -1,8 +1,15 @@
 [project]
 name = "microjax"
 version = "0.1.0"
-description = "like Karpathy's micrograd but following jax's functional paradigm"
+description = "Like Karpathy's micrograd but following JAX's functional style"
+readme = "README.md"
+license = "MIT"
 requires-python = ">3.11"
+dependencies = []
+
+[build.system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.hatch.envs.default]
 type = "virtual"
@@ -15,3 +22,6 @@ dependencies = [
     "scikit-learn",
     "ipykernel",
 ]
+
+[tool.hatch.envs.default.scripts]
+test = "pytest"
