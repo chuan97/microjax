@@ -34,6 +34,9 @@ class Neuron:
 
         return cls(w=w, b=b, nonlin=nonlin)
 
+    def __repr__(self):
+        return f"{'ReLU' if self.nonlin else 'Linear'}Neuron({len(self.w)})"
+
 
 @dataclass(frozen=True)
 class Layer:
@@ -53,11 +56,15 @@ class Layer:
     @classmethod
     def from_parameters(cls, params: list[Scalar], nin: int, nout: int) -> "Layer":
         width = nin + 2
+
         neurons = [
             Neuron.from_parameters(params[i * width : (i + 1) * width])
             for i in range(nout)
         ]
         return cls(neurons)
+
+    def __repr__(self):
+        return f"Layer of [{', '.join(str(n) for n in self.neurons)}]"
 
 
 @dataclass(frozen=True)
@@ -76,12 +83,27 @@ class MLP:
     @classmethod
     def init(cls, nin: int, nouts: list[int]) -> "MLP":
         sz = [nin] + nouts
+
         layers = [
             Layer.init(sz[i], sz[i + 1], nonlin=i != len(nouts) - 1)
             for i in range(len(nouts))
         ]
+
         return cls(layers)
 
     @classmethod
-    def from_params(cls, params: list[Scalar], nin: int, nouts: list[int]) -> "MLP":
-        pass
+    def from_parameters(cls, params: list[Scalar], nin: int, nouts: list[int]) -> "MLP":
+        sz = [nin] + nouts
+        layers = []
+        idx = 0
+
+        for in_dim, out_dim in zip(sz, sz[1:]):
+            num_params = (in_dim + 2) * out_dim
+            layer_params = params[idx : idx + num_params]
+            layers.append(Layer.from_parameters(layer_params, in_dim, out_dim))
+            idx += num_params
+
+        return cls(layers)
+
+    def __repr__(self):
+        return f"MLP of [{', '.join(str(layer) for layer in self.layers)}]"
