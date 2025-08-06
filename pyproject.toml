@@ -7,7 +7,7 @@ license = "MIT"
 requires-python = ">3.11"
 dependencies = []
 
-[build.system]
+[build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
