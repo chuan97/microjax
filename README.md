@@ -1,7 +1,7 @@
 
 # microjax
 
-A tiny autograd engine following the spirit of Karpathy's [micrograd](https://github.com/karpathy/micrograd/blob/master/README.md). 
+A tiny autograd engine following the spirit of Karpathy's [micrograd](https://github.com/karpathy/micrograd). 
 
 Like micrograd, it implements backpropagation (reverse-mode autodiff) over a dynamically built DAG of scalar values and a small neural networks library on top of it. 
 
